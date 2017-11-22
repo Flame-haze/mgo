@@ -177,8 +177,9 @@ func (d *decoder) readDocTo(out reflect.Value) {
 	switch outk {
 	case reflect.Map:
 		keyType = outt.Key()
-		if keyType.Kind() != reflect.String {
-			panic("BSON map must have string keys. Got: " + outt.String())
+		if keyType.Kind() != reflect.String && keyType.Kind() != reflect.Int &&
+			keyType.Kind() != reflect.Int32 && keyType.Kind() != reflect.Int64 {
+			panic("BSON map must have string or int keys. Got: " + outt.String())
 		}
 		if keyType != typeString {
 			convertKey = true
@@ -243,7 +244,16 @@ func (d *decoder) readDocTo(out reflect.Value) {
 			if d.readElemTo(e, kind) {
 				k := reflect.ValueOf(name)
 				if convertKey {
-					k = k.Convert(keyType)
+					keyKind := keyType.Kind()
+					if keyKind == reflect.Int || keyKind == reflect.Int32 || keyKind == reflect.Int64 {
+						name, err := strconv.ParseInt(name, 10, 0)
+						if err == nil {
+							k = reflect.ValueOf(name)
+							k = k.Convert(keyType)
+						}
+					} else {
+						k = k.Convert(keyType)
+					}
 				}
 				out.SetMapIndex(k, e)
 			}
@@ -672,6 +682,11 @@ func (d *decoder) readElemTo(out reflect.Value, kind byte) (good bool) {
 				out.SetInt(0)
 			}
 			return true
+		case reflect.String:
+			if parseInt, err := strconv.ParseInt(inv.String(), 10, 64); err == nil {
+				out.SetInt(parseInt)
+				return true
+			}
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			panic("can't happen: no uint types in BSON (!?)")
 		}

@@ -129,7 +129,12 @@ func (e *encoder) addDoc(v reflect.Value) {
 
 func (e *encoder) addMap(v reflect.Value) {
 	for _, k := range v.MapKeys() {
-		e.addElem(k.String(), v.MapIndex(k), false)
+		kind := k.Kind()
+		if kind == reflect.Int || kind == reflect.Int32 || kind == reflect.Int64 {
+			e.addElem(strconv.FormatInt(k.Int(), 10), v.MapIndex(k), false)
+		} else {
+			e.addElem(k.String(), v.MapIndex(k), false)
+		}
 	}
 }
 
